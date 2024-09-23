@@ -101,7 +101,7 @@ bool check_right_and_move() {
 
 //숲 진입 movement
 bool entry_move() {
-    for (int cnt = 0; cnt < 2; ++cnt) {
+    for (int cnt = 0; cnt < 3; ++cnt) {
         if (!check_bottom_and_move() &&
             !check_left_and_move() &&
             !check_right_and_move()) {
