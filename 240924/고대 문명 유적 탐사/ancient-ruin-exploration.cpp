@@ -182,9 +182,10 @@ int main() {
                     rotate(box.begin(), box.begin() + 2, box.end());
                     //box_debug_print();
                     int score = calc_score(r, c, ARB);
-                    //cout << "r, c, rotate_cnt, score : " << r << " " << c << " " << rotate_cnt << " " << score << "\n";
+                    //ruin_debug_print(ARB);
+                    //cout << "r, c, rotate_cnt, score : " << r << " " << c << " " << rotate_cnt << " " << score << "\n\n";
                     if (score == 0) continue;
-                    if (max_score < score || (max_score == score && max_rotate_cnt <= rotate_cnt)) {
+                    if (max_score < score || (max_score == score && max_rotate_cnt <= rotate_cnt + 1)) {
                         max_score = score;
                         max_r = r;
                         max_c = c;
@@ -193,9 +194,9 @@ int main() {
                 }
             }
         }
-      //  cout << "\n";
+        //cout << "\n";
 
-        //cout << max_r << " " << max_c << " " << max_rotate_cnt << " " << max_score << "\n";
+        //cout << max_r << " " << max_c << " " << max_rotate_cnt << " max_score : " << max_score << "\n\n";
         if (max_score == 0) break;
 
         //맵 갱신
