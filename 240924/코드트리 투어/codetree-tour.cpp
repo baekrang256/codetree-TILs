@@ -11,7 +11,7 @@ int Q, cmd, n, m;
 vector<pair<int, int>> edges[2000]; //엣지들 모음. first : cost, second : dest
 int cost[2000]; //특정 시작지점으로부터의 도착 지점 비용 모음. 다익스트라가 갱신
 bool visited[2000]; //다익스트라 활용 방문 여부
-pair<int, int> info[30000]; //id에 따른 product 정보. first : revenue, second :dest
+pair<int, int> info[30001]; //id에 따른 product 정보. first : revenue, second :dest
 
 int dest(int id) {
     return info[id].second;
@@ -183,6 +183,7 @@ int main() {
                 break;
         }
     }
+    cout << flush;
 
     return 0;
 }
