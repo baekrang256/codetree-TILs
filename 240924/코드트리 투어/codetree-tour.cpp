@@ -58,7 +58,7 @@ void initialize_dijkstra() {
 
 void dijkstra(int start) {
     initialize_dijkstra();
-    priority_queue<pair<int, int>> pq;
+    priority_queue<pair<int, int>, vector<pair<int, int>>, greater<pair<int, int>>> pq;
     cost[start] = 0;
     pq.push({ 0, start });
     for (int cnt = 0; cnt < n; ++cnt) {
@@ -85,6 +85,7 @@ void dijkstra(int start) {
                 pq.push({ cost[dest], dest });
             }
         }
+        //if (!pq.empty()) cout << pq.top().first << " " << pq.top().second << "\n";
     }
     //debug_print_cost();
 }
