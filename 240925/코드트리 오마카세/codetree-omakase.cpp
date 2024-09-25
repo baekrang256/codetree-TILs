@@ -1,146 +1,133 @@
 #include <iostream>
-#include <string>
-#include <list>
 #include <vector>
-#include <unordered_map>
+#include <string>
+#include <set>
+#include <map>
+#include <algorithm>
 
 using namespace std;
 
-int L, Q, cmd, customer_cnt = 0, sushi_cnt = 0;
-int glob_customer_idx = 0;
-int glob_sushi_idx = 0;
-int turn = 0;
-pair<int, int> customers[15000]; //각 손님 위치 및 먹은 개수 정보 (이름 별로 분류 되어 있음) first : 위치, second : 개수
-list<int> sushi[15000]; //각 초밥 위치 정보. (이름 별로 분류되어 있음) list의 각 elment가 해당 이름 초밥 현재 위치.
-unordered_map<string, int> customer_map; //index map
-unordered_map<string, int> sushi_map; //index map
+// 변수 선언
+int L, Q;
 
-void handle_spin() {
-    for (auto sushi_info : sushi_map) {
-        int sushi_idx = sushi_info.second;
-        auto it = sushi[sushi_idx].begin();
-        while (it != sushi[sushi_idx].end()) {
-            //cout << *it << "\n";
-            *it += 1;
-            *it %= L;
-            it++;
+class Query {
+    public:
+        int cmd, t, x, n;
+        string name;
+
+        Query(int cmd, int t, int x, string name, int n) {
+            this->cmd = cmd;
+            this->t = t;
+            this->x = x;
+            this->name = name;
+            this->n = n;
         }
-    }
-}
+};
 
-void handle_eating() {
-    vector<string> v;
-    for (auto customer_info : customer_map) {
-        const string customer_name = customer_info.first;
-        const int customer_idx = customer_info.second;
+// 명령들을 관리합니다.
+vector<Query> queries;
 
-        int customer_pos = customers[customer_idx].first;
-        int customer_left_cnt = customers[customer_idx].second;
-        auto sushi_it = sushi_map.find(customer_name);
-        if (sushi_it == sushi_map.end()) continue; //초밥이 아직 없넹
-        const int sushi_idx = sushi_it->second;
-        auto it = sushi[sushi_idx].begin();
-        while (it != sushi[sushi_idx].end()) {
-            if (*it == customer_pos) {
-                it = sushi[sushi_idx].erase(it);
-                customer_left_cnt -= 1;
-                sushi_cnt -= 1;
-            }
-            else {
-                ++it;
-            }
-        }
+// 등장한 사람 목록을 관리합니다.
+set<string> names;
 
-        if (customer_left_cnt <= 0) {
-            v.push_back(customer_name);
-            customer_cnt -= 1;
-        }
-        else {
-            customers[customer_idx].second = customer_left_cnt;
-        }
-    }
+// 각 사람마다 주어진 초밥 명령만을 관리합니다.
+map<string, vector<Query> > p_queries;
 
-    for (string erased_name : v) {
-        customer_map.erase(erased_name);
-        sushi_map.erase(erased_name);
-    }
-}
+// 각 사람마다 입장 시간을 관리합니다.
+map<string, int> entry_time;
 
-void turn_calc(int cur_turn) {
-    while (true) {
-        //일단 누가 호출 했든 간에 모든 초밥이 회전을 해야 한다.
-        handle_spin();
-        //이후 턴을 증가시킨다.
-        ++turn;
-        if (turn >= cur_turn) break;
-        handle_eating();
-    }
-}
+// 각 손님의 위치를 관리합니다.
+map<string, int> position;
 
-void make_sushi() {
-    int t, x; string name;
-    cin >> t >> x >> name;
-    turn_calc(t);
-    //초밥 만들기. 일단 해당 이름이 존재하는지 확인
-    //있으면 그 index에다가 새로 삽입을 하고 없으면 새로운 매핑 정보를 집어 넣음
-    int sushi_idx;
-    if (sushi_map.find(name) != sushi_map.end()) {
-        sushi_idx = sushi_map[name];
-    }
-    else {
-        sushi_idx = glob_sushi_idx++;
-        sushi_map.insert({ name, sushi_idx });
-    }
-    //이후 해당 초밥을 집어넣음
-    sushi[sushi_idx].push_back(x);
-    sushi_cnt += 1;
+// 각 사람마다 퇴장 시간을 관리합니다.
+map<string, int> exit_time;
 
-    //먹는 것 까지 처리
-    handle_eating();
-}
-
-void enter_guest() {
-    int t, x, n; string name;
-    cin >> t >> x >> name >> n;
-    turn_calc(t);
-    //새로 들어오고
-    int customer_idx = glob_customer_idx++;
-    customer_cnt += 1;
-    customer_map[name] = customer_idx;
-    customers[customer_idx].first = x;
-    customers[customer_idx].second = n;
-
-    //먹는 것 까지 처리
-    handle_eating();
-}
-
-void take_photo() {
-    int t;
-    cin >> t;
-    turn_calc(t);
-    //먹는 것 처리하고
-    handle_eating();
-    //사진 찍기
-    cout << customer_cnt << " " << sushi_cnt << "\n";
+// Query를 (t, cmd) 순으로 정렬합니다.
+bool cmp(Query q1, Query q2) {
+    if(q1.t != q2.t)
+        return q1.t < q2.t;
+    return q1.cmd < q2.cmd;
 }
 
 int main() {
+    // 입력:
     cin >> L >> Q;
-    
-    for (int query_cnt = 0; query_cnt < Q; ++query_cnt) {
+    for(int i = 0; i < Q; i++) {
+        int cmd = -1;
+        int t = -1, x = -1, n = -1;
+        string name;
         cin >> cmd;
-        switch (cmd) {
-        case 100:
-            make_sushi();
-            break;
-        case 200:
-            enter_guest();
-            break;
-        case 300:
-            take_photo();
-            break;
+        if(cmd == 100)
+            cin >> t >> x >> name;
+        else if(cmd == 200)
+            cin >> t >> x >> name >> n;
+        else cin >> t;
+
+        queries.push_back(Query(cmd, t, x, name, n));
+        
+        // 사람별 주어진 초밥 목록을 관리합니다.
+        if(cmd == 100)
+            p_queries[name].push_back(Query(cmd, t, x, name, n));
+        // 손님이 입장한 시간과 위치를 관리합니다.
+        else if(cmd == 200) {
+            names.insert(name);
+            entry_time[name] = t;
+            position[name] = x;
         }
     }
 
+    // 각 사람마다 자신의 이름이 적힌 조합을 언제 먹게 되는지를 계산하여 해당 정보를 기존 Query에 추가합니다. (111번 쿼리)
+    for(string name : names) {
+        // 해당 사람의 퇴장 시간을 관리합니다.
+        // 이는 마지막으로 먹는 초밥 시간 중 가장 늦은 시간이 됩니다.
+        exit_time[name] = 0;
+
+        for(Query q: p_queries[name]) {
+            // 만약 초밥이 사람이 등장하기 전에 미리 주어진 상황이라면
+            int time_to_removed = 0;
+            if(q.t < entry_time[name]) {
+                // entry_time때의 스시 위치를 구합니다.
+                int t_sushi_x = (q.x + (entry_time[name] - q.t)) % L;
+                // 몇 초가 더 지나야 만나는지를 계산합니다.
+                int additionl_time = (position[name] - t_sushi_x + L) % L;
+
+                time_to_removed = entry_time[name] + additionl_time;
+            }
+            // 초밥이 사람이 등장한 이후에 주어졌다면
+            else {
+                // 몇 초가 더 지나야 만나는지를 계산합니다.
+                int additionl_time = (position[name] - q.x + L) % L;
+                time_to_removed = q.t + additionl_time;
+            }
+
+            // 초밥이 사라지는 시간 중 가장 늦은 시간을 업데이트 합니다.
+            exit_time[name] = max(exit_time[name], time_to_removed);
+
+            // 초밥이 사라지는 111번 쿼리를 추가합니다.
+            queries.push_back(Query(111, time_to_removed, -1, name, -1));
+        }
+    }
+
+    // 사람마다 초밥을 마지막으로 먹은 시간 t를 계산하여 그 사람이 해당 t 때 코드트리 오마카세를 떠났다는 Query를 추가합니다. (222번 쿼리)
+    for(string name : names)
+        queries.push_back(Query(222, exit_time[name], -1, name, -1));
+
+    // 전체 Query를 시간순으로 정렬하되 t가 일치한다면 문제 조건상 사진 촬영에 해당하는 300이 가장 늦게 나오도록 cmd 순으로 오름차순 정렬을 합니다.
+    // 이후 순서대로 보면서 사람, 초밥 수를 count하다가 300이 나오면 현재 사람, 초밥 수를 출력합니다.
+    sort(queries.begin(), queries.end(), cmp);
+    
+    int people_num = 0, sushi_num = 0;
+    for(int i = 0; i < (int) queries.size(); i++) {
+        if(queries[i].cmd == 100) // 초밥 추가
+            sushi_num++;
+        else if(queries[i].cmd == 111) // 초밥 제거
+            sushi_num--;
+        else if(queries[i].cmd == 200) // 사람 추가
+            people_num++;
+        else if(queries[i].cmd == 222) // 사람 제거
+            people_num--;
+        else // 사진 촬영시 답을 출력하면 됩니다.
+            cout << people_num << " " << sushi_num << "\n";
+    }
     return 0;
 }
