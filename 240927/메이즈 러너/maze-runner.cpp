@@ -1,15 +1,16 @@
 #include <iostream>
 #include <vector>
 
-#define EXIT (-11)
-//player 마킹은 -1~-10이다.
+#define EXIT (-1)
 
 using namespace std;
 
 int N, M, K;
 int exit_r, exit_c;
 int maze[11][11] = { 0 }; //미로
-int tmp[11][11]; //회전용
+bool player[11][11][11] = { false }; //해당 위치에 몇번 참가자 있는가. 여러 명이 동시에 있을 수 있어서...
+int tmp_maze[11][11]; //회전용
+int tmp_player[11][11][11]; //회전용
 int move_cnt = 0; //모든 참가자 이동 횟수.
 pair<int, int> player_pos[11]; //참가자 위치
 bool exited[11] = { false }; //해당 번호 플레이어 탈출 여부
@@ -61,7 +62,7 @@ int main() {
         cin >> r >> c;
         player_pos[p_num].first = r;
         player_pos[p_num].second = c;
-        maze[r][c] = -p_num;
+        player[r][c][p_num] = true;
     }
 
     //탈출구 정보
@@ -73,7 +74,7 @@ int main() {
         //플레이어 일단 지도에 지움.
         for (int p_num = 1; p_num <= M; ++p_num) {
             if (!exited[p_num])
-                maze[player_pos[p_num].first][player_pos[p_num].second] = 0;
+                player[player_pos[p_num].first][player_pos[p_num].second][p_num] = false;
         }
 
         //플레이어 이동 시뮬레이션.
@@ -122,7 +123,7 @@ int main() {
         //플레이어 이동 지도에 반영
         for (int p_num = 1; p_num <= M; ++p_num) {
             if (exited[p_num]) continue;
-            maze[player_pos[p_num].first][player_pos[p_num].second] = -p_num;
+            player[player_pos[p_num].first][player_pos[p_num].second][p_num] = true;
         }
 
         //debug_print_maze();
@@ -195,7 +196,10 @@ int main() {
         //일단 해당 영역 복사.
         for (int r = sel_r; r < sel_r + min_len; ++r) {
             for (int c = sel_c; c < sel_c + min_len; ++c) {
-                tmp[r - sel_r][c - sel_c] = maze[r][c];
+                tmp_maze[r - sel_r][c - sel_c] = maze[r][c];
+                for (int p_num = 1; p_num <= M; ++p_num) {
+                    tmp_player[r - sel_r][c - sel_c][p_num] = player[r][c][p_num];
+                }
             }
         }
 
@@ -205,20 +209,23 @@ int main() {
         for (int c = sel_c + min_len - 1; c >= sel_c; --c, ++tmp_r) {
             int tmp_c = 0;
             for (int r = sel_r; r < sel_r + min_len; ++r, ++tmp_c) {
-                maze[r][c] = tmp[tmp_r][tmp_c];
+                maze[r][c] = tmp_maze[tmp_r][tmp_c];
                 if (maze[r][c] == EXIT) {
                     //출구 갱신
                     exit_r = r;
                     exit_c = c;
                 }
-                else if (maze[r][c] < 0) {
-                    //플레이어 위치 갱신
-                    player_pos[-maze[r][c]].first = r;
-                    player_pos[-maze[r][c]].second = c;
-                }
                 else if (maze[r][c] > 0) {
                     //벽 내구도 깎기
                     maze[r][c] -= 1;
+                }
+
+                for (int p_num = 1; p_num <= M; ++p_num) {
+                    player[r][c][p_num] = tmp_player[tmp_r][tmp_c][p_num];
+                    if (tmp_player[tmp_r][tmp_c][p_num]) {
+                        player_pos[p_num].first = r;
+                        player_pos[p_num].second = c;
+                    }
                 }
             }
         }
