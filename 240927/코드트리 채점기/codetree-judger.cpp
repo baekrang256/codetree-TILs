@@ -1,181 +1,236 @@
 #include <iostream>
 #include <queue>
 #include <set>
-#include <unordered_set>
-#include <unordered_map>
-#include <string>
+#include <map>
 
 using namespace std;
 
-struct problem {
+#define INF 1987654321
+#define MAX_N 50000
+#define MAX_D 300
+
+int q;
+int n;
+
+// 해당 도메인에서 해당 문제ID가 레디큐에 있는지 관리해줍니다.
+set<int> is_in_readyq[MAX_D + 1];
+
+// 현재 쉬고 있는 채점기들을 관리해줍니다.
+priority_queue<int, vector<int>, greater<int> > rest_judger;
+
+// 각 채점기들이 채점할 때, 도메인의 인덱스를 저장합니다.
+int judging_domain[MAX_N + 1];
+
+// 각 도메인별 start, gap, end(채점이 가능한 최소 시간)을 관리합니다.
+int s[MAX_D + 1];
+int g[MAX_D + 1];
+int e[MAX_D + 1];
+
+// 도메인을 관리하기 위해 cnt를 이용합니다.
+// 도메인 문자열을 int로 변환해주는 map을 관리합니다.
+map<string, int> domainToIdx;
+int cnt;
+
+// 현재 채점 대기 큐에 있는 task의 개수를 관리합니다.
+int ans;
+
+struct Url{
+    int tme, id;
+    int num;
+
+    // 우선순위가 높은 url을 결정하기 위해 정렬함수를 만들어줍니다.
+    bool operator <(const Url &b) const {
+        if(id != b.id) return id > b.id;
+        return tme > b.tme;
+    }
+};
+
+// 각 도메인별로 priority queue를 만들어
+// 우선순위가 가장 높은 url을 뽑아줍니다.
+priority_queue<Url> url_pq[MAX_D + 1];
+
+// 채점기를 준비합니다.
+void Init() {
     string url;
-    string domain;
-    int priority;
-    int assigned_time;
-};
+    cin >> n >> url;
 
-struct compare {
-    bool operator() (const problem& p1, const problem& p2) const {
-        if (p1.priority != p2.priority) return p1.priority < p2.priority;
-        return p1.assigned_time < p2.assigned_time;
+    for(int i = 1; i <= n; i++) rest_judger.push(i);
+
+    // url에서 도메인 부분과 숫자 부분을 나누어줍니다.
+    int idx = 0;
+    for(int i = 0; i < url.length(); i++) {
+        if(url[i] == '/') idx = i;
     }
-};
 
-int N, Q, cmd;
-bool on_work[50001] = { false }; //worker 동작 여부.
-string assigned_work[50001]; //일 하고 있는 worker의 대상 domain. 이는 나중에 domain 채점 시간 및 종료 시간 추적에 필요.
-priority_queue<int, vector<int>, greater<int>> pending_worker; //일 안하고 있는 worker들 모음.
-set<problem, compare> pending_jobs; //채점 대기에 있는 job 모음. 
-unordered_set<string> pending_urls; //채점 대기에 있는 url들 모음. 이는 채점 요청에서 채점 대기 큐에 넣을지 판단하는데 사용.
-unordered_map<string, pair<int, int>> start_end_time; //각 도메인의 최근 진행 채점 시작 시간 및 종료 시간. 만약 채점 시작 시간이 종료 시간보다 크면 아직 채점 중이라는 뜻. first가 시작, second가 종료
+    string domain = url.substr(0, idx);
+    int num = stoi(url.substr(idx + 1));
 
-void debug_print(int query) {
-    cout << "current query : " << query << "\n";
-    cout << "pending jobs in order\n";
-    for (auto val : pending_jobs) {
-        cout << val.url << " " << val.domain << " " << val.priority << " " << val.assigned_time << "\n";
+    // 만약 도메인이 처음 나온 도메인이라면 domainToIdx에 갱신합니다.
+    if(!domainToIdx[domain]) {
+        cnt++;
+        domainToIdx[domain] = cnt;
     }
-    cout << "\n";
+    int domain_idx = domainToIdx[domain];
+
+    // 도메인 번호에 맞는 레디큐에 숫자 부분을 넣어줍니다.
+    is_in_readyq[domain_idx].insert(num);
+
+    // 새로 들어온 url을 도메인에 맞춰 url_pq에 넣어줍니다.
+    Url newUrl;
+    newUrl.tme = 0;
+    newUrl.id = 1;
+    newUrl.num = num;
+    url_pq[domain_idx].push(newUrl);
+
+    // 채점 대기 큐에 값이 추가됐으므로 개수를 1 추가합니다.
+    ans++;
 }
 
-string extract(string& url) {
-    return url.substr(0, url.find("/"));
-}
+// 새로운 url을 입력받아 레디큐에 추가해줍니다.
+void NewUrl() {
+    int tme, id;
+    string url;
+    cin >> tme >> id >> url;
 
-//initialize 작업이라고 볼 수 있다.
-void prepare() {
-    string u0;
-    cin >> N >> u0;
-    for (int i = 1; i <= N; ++i) {
-        pending_worker.push(i);
+    // url에서 도메인 부분과 숫자 부분을 나누어줍니다.
+    int idx = 0;
+    for(int i = 0; i < url.length(); i++) {
+        if(url[i] == '/') idx = i;
     }
-    pending_urls.insert(u0);
-    string domain = extract(u0);
-    pending_jobs.insert({ u0, domain, 1, 0 });
+
+    string domain = url.substr(0, idx);
+    int num = stoi(url.substr(idx + 1));
+
+    // 만약 도메인이 처음 나온 도메인이라면 domainToIdx에 갱신합니다.
+    if(!domainToIdx[domain]) {
+        cnt++;
+        domainToIdx[domain] = cnt;
+    }
+
+    int domain_idx = domainToIdx[domain];
+    // 만약 숫자 부분이 이미 레디큐에 있으면 중복되므로 넘어갑니다.
+    if(is_in_readyq[domain_idx].find(num) != is_in_readyq[domain_idx].end()) {
+        return;
+    }
+    // 도메인 번호에 맞는 레디큐에 숫자 부분을 넣어줍니다.
+    is_in_readyq[domain_idx].insert(num);
+
+    // 새로 들어온 url을 도메인에 맞춰 url_pq에 넣어줍니다.
+    Url newUrl;
+    newUrl.tme = tme;
+    newUrl.id = id;
+    newUrl.num = num;
+    url_pq[domain_idx].push(newUrl);
+
+    // 채점 대기 큐에 값이 추가됐으므로 개수를 1 추가합니다.
+    ans++;
 }
 
-//채점 요청
-void request() {
-    int t, p; string u;
-    cin >> t >> p >> u;
+// 다음 도메인을 찾아 assign합니다.
+void Assign() {
+    int tme;
+    cin >> tme;
 
-    //이미 정확히 똑같은 url이 대기 중이면 그냥 넘어가야 한다.
-    if (pending_urls.find(u) != pending_urls.end()) return;
+    // 쉬고 있는 채점기가 없다면 넘어갑니다.
+    if(rest_judger.empty()) return;
 
-    //아니라면 집어넣는다.
-    pending_urls.insert(u);
-    string domain = extract(u);
-    pending_jobs.insert({ u, domain, p, t });
-}
+    // 가장 우선순위가 높은 url을 찾습니다.
+    int min_domain = 0;
+    Url minUrl;
+    minUrl.id = INF;
 
-//채점 시도
-void trial() {
-    int t;
-    cin >> t;
+    for(int i = 1; i <= cnt; i++) {
+        // 만약 현재 채점중이거나, 현재 시간에 이용할 수 없다면 넘어갑니다.
+        if(e[i] > tme) continue;
 
-    //일단 쉬고 있는 채점기가 있는가? 없으면 넘어간다.
-    if (pending_worker.size() == 0) return;
+        // 만약 i번 도메인에 해당하는 url이 존재한다면
+        // 해당 도메인에서 가장 우선순위가 높은 url을 뽑고 갱신해줍니다.
+        if(!url_pq[i].empty()) {
+            Url curUrl = url_pq[i].top();
 
-    //다음으로 수행할 수 있는 작업이 있긴 한가?
-    auto it = pending_jobs.begin();
-    auto start_end_time_it = start_end_time.end();
-    while (it != pending_jobs.end()) {
-        start_end_time_it = start_end_time.find(it->domain);
-        //아직 한번도 시작한 적이 없으면 풀어야죠?
-        if (start_end_time_it == start_end_time.end()) {
-            break;
+            if(minUrl < curUrl) {
+                minUrl = curUrl;
+                min_domain = i;
+            }
         }
-        int start_time = start_end_time_it->second.first;
-        int end_time = start_end_time_it->second.second;
-        //만약 진행 중이면 풀지 말아야죠?
-        if (start_time > end_time) {
-            ++it;
-            continue;
-        }
-        //만약 진행 중은 아닌데 부적절한 채점이면 수행하면 안됨.
-        if (start_time + 3 * (end_time - start_time) > t) {
-            ++it;
-            continue;
-        }
-        //전부 통과. 괜찮다.
-        break;
     }
 
-    //할 수 있는 작업이 없으면 넘어간다.
-    if (it == pending_jobs.end()) return;
+    // 만약 가장 우선순위가 높은 url이 존재하면
+    // 해당 도메인과 쉬고 있는 가장 낮은 번호의 채점기를 연결해줍니다.
+    if(min_domain) {
+        int judger_idx = rest_judger.top(); rest_judger.pop();
 
-    //할 수 있는 작업이면 즉시 수행한다.
-    //먼저 worker을 정한고 수행한다.
-    int worker = pending_worker.top();
-    pending_worker.pop();
-    on_work[worker] = true;
-    assigned_work[worker] = it->domain;
+        // 해당 도메인의 가장 우선순위가 높은 url을 지웁니다.
+        url_pq[min_domain].pop();
 
-    //다음으로 시작시간을 업데이트해야 하는데, 없으면 삽입을 한다.
-    if (start_end_time_it == start_end_time.end()) {
-        start_end_time.insert({ it->domain, {t, 0} }); //시작은 t, 종료는 0으로 설정
+        // 도메인의 start, end를 갱신해줍니다.
+        s[min_domain] = tme;
+        e[min_domain] = INF;
+
+        // judger_idx번 채점기가 채점하고 있는 도메인 번호를 갱신해줍니다.
+        judging_domain[judger_idx] = min_domain;
+
+        // 레디큐에서 해당 url의 숫자를 지워줍니다.
+        is_in_readyq[min_domain].erase(is_in_readyq[min_domain].find(minUrl.num));
+
+        // 채점 대기 큐에 값이 지워졌으므로 개수를 1 감소합니다.
+        ans--;
     }
-    else {//있으면 시작 시간만 변경한다.
-        start_end_time_it->second.first = t;
-    }
-
-    //이제 대기 중이지 않으니 갱신한다. url과 job를 갱신
-    pending_urls.erase(it->url);
-    pending_jobs.erase(it);
 }
 
-//작업 종료
-void over() {
-    int t, J_id;
-    cin >> t >> J_id;
+// 채점 하나를 마무리합니다.
+void Finish() {
+    int tme, id;
+    cin >> tme >> id;
 
-    //애초에 작업 중이 아니면 무시한다.
-    if (!on_work[J_id]) return;
+    // 만약 id번 채점기가 채점 중이 아닐 경우 스킵합니다.
+    if(judging_domain[id] == 0) return;
 
-    //일단 작업 종료. 대기 중으로 다시 넣어야 한다.
-    on_work[J_id] = false;
-    pending_worker.push(J_id);
+    // id번 채점기를 마무리합니다.
+    rest_judger.push(id);
+    int domain_idx = judging_domain[id];
+    judging_domain[id] = 0;
 
-    //시작 종료 시간 갱신 필요
-    auto it = start_end_time.find(assigned_work[J_id]);
-    it->second.second = t;
+    // 해당 도메인의 gap, end 값을 갱신해줍니다.
+    g[domain_idx] = tme - s[domain_idx];
+    e[domain_idx] = s[domain_idx] + 3 * g[domain_idx];
 }
 
-//pending_jobs 사이즈 출력
-void snoop() {
-    int t;
-    cin >> t;
-    cout << pending_jobs.size() << "\n";
+// 현재 채점 대기 큐에 있는 url의 개수를 출력해줍니다.
+void Check() {
+    int tme;
+    cin >> tme;
+
+    cout << ans << "\n";
 }
 
 int main() {
-    ios_base::sync_with_stdio(false);
-    cin.tie(NULL);
-    cout.tie(NULL);
-    cin >> Q;
+		
+    cin >> q;
 
-    for (int query = 1; query <= Q; ++query) {
-        cin >> cmd;
-        switch (cmd) {
-        case 100:
-            prepare();
-            break;
-        case 200:
-            request();
-            break;
-        case 300:
-            trial();
-            break;
-        case 400:
-            over();
-            break;
-        case 500:
-            snoop();
-            break;
+    while(q--) {
+        int query;
+        cin >> query;
+
+        if(query == 100) {
+            // 채점기를 준비합니다.
+            Init();
         }
-
-        //debug_print(query);
+        if(query == 200) {
+            // 새로운 url을 입력받아 레디큐에 추가해줍니다.
+            NewUrl();
+        }
+        if(query == 300) {
+            // 다음 도메인을 찾아 assign합니다.
+            Assign();
+        }
+        if(query == 400) {
+            // 채점 하나를 마무리합니다.
+            Finish();
+        }
+        if(query == 500) {
+            // 현재 채점 대기 큐에 있는 url의 개수를 출력해줍니다.
+            Check();
+        }
     }
-
-    cout << flush;
 }
