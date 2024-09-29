@@ -55,6 +55,7 @@ void initialize() {
         for (int c = 1; c <= M; ++c) {
             visited[r][c] = false;
             attacked[r][c] = false;
+            prev_node[r][c] = { 0, 0 };
         }
     }
 }
@@ -164,7 +165,6 @@ bool laser_possible() {
 
             //파괴 안되어있어야 함. 방문 안되어 있어야 함.
             if (attack[new_r][new_c] != DESTROYED && !visited[new_r][new_c]) {
-                //cout << "pushed " << new_r << " " << new_c << " with " << cur_r << " " << cur_c << "\n";
                 q.push({ new_r, new_c });
                 visited[new_r][new_c] = true;
                 prev_node[new_r][new_c] = { cur_r, cur_c };
@@ -189,26 +189,17 @@ void do_attack(int r, int c, int damage) {
 
 //레이저 공격 수행. 이전 경로 탐색 활용.
 void do_laser() {
-    //cout << "prev node\n";
-    //for (int r = 1; r <= N; ++r) {
-    //    for (int c = 1; c <= N; ++c) {
-    //        cout << "{" << prev_node[r][c].first << " " << prev_node[r][c].second << "}, ";
-    //    }
-    //    cout << "\n";
-    //}
-    //cout << "\n";
-    //cout << "doing laser" << "\n";
     int cur_r = target_r;
     int cur_c = target_c;
     int attacker_atk = attack[attacker_r][attacker_c];
 
     do_attack(cur_r, cur_c, attacker_atk);
-    cur_r = prev_node[cur_r][cur_c].first;
-    cur_c = prev_node[cur_r][cur_c].second;
+    auto val = prev_node[cur_r][cur_c];
+    cur_r = val.first;
+    cur_c = val.second;
     attacker_atk /= 2;
 
     while (cur_r != attacker_r || cur_c != attacker_c) {
-        //cout << cur_r << " " << cur_c << "\n";
         do_attack(cur_r, cur_c, attacker_atk);
         auto val = prev_node[cur_r][cur_c];
         cur_r = val.first;
@@ -218,7 +209,6 @@ void do_laser() {
 
 //폭탄 공격 수행.
 void do_bomb() {
-    //cout << "doing bomb" << "\n";
     int attacker_atk = attack[attacker_r][attacker_c];
     do_attack(target_r, target_c, attacker_atk);
     attacker_atk /= 2;
@@ -243,22 +233,12 @@ void do_bomb() {
 //공격
 void do_attack() {
     select_target();
-    //cout << "target is : " <<  target_r << " " << target_c << "\n";
     if (laser_possible()) {
         do_laser();
     }
     else {
         do_bomb();
     }
-
-    //cout << "after attack\n";
-    //for (int r = 1; r <= N; ++r) {
-    //    for (int c = 1; c <= N; ++c) {
-    //        cout << attack[r][c] << " ";
-    //    }
-    //    cout << "\n";
-    //}
-    //cout << "\n";
 }
 
 //공격 당하지 않은 곳 수리
@@ -271,15 +251,6 @@ void repair() {
             }
         }
     }
-
-    //cout << "after repair\n";
-    //for (int r = 1; r <= N; ++r) {
-    //    for (int c = 1; c <= N; ++c) {
-    //        cout << attack[r][c] << " ";
-    //    }
-    //    cout << "\n";
-    //}
-    //cout << "\n";
 }
 
 int find_max() {
@@ -302,7 +273,6 @@ int main() {
     for (int turn = 0; turn < K; ++turn) {
         initialize();
         select_attacker();
-        //cout << "attacker is : " << attacker_r << " " << attacker_c << "\n";
         do_attack();
         repair();
         if (should_exit()) break;
