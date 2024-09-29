@@ -86,7 +86,7 @@ void increase_attack() {
 //공격자 선택
 void select_attacker() {
     for (int r = 1; r <= N; ++r) {
-        for (int c = 1; c <= N; ++c) {
+        for (int c = 1; c <= M; ++c) {
             int cur_attack = attack[r][c];
             //부서진 포탑은 무시
             if (cur_attack == DESTROYED) continue;
@@ -126,7 +126,7 @@ bool should_be_target(int r, int c, int cmp_r, int cmp_c) {
 //타겟 선정
 void select_target() {
     for (int r = 1; r <= N; ++r) {
-        for (int c = 1; c <= N; ++c) {
+        for (int c = 1; c <= M; ++c) {
             int cur_attack = attack[r][c];
             //부서진 포탑은 무시
             if (cur_attack == DESTROYED) continue;
@@ -244,7 +244,7 @@ void do_attack() {
 //공격 당하지 않은 곳 수리
 void repair() {
     for (int r = 1; r <= N; ++r) {
-        for (int c = 1; c <= N; ++c) {
+        for (int c = 1; c <= M; ++c) {
             //공격자 아니어야함, 공격당한 곳 아니어야함, 부서진 곳 아니어야 함.
             if ((r != attacker_r || c != attacker_c) && attack[r][c] != DESTROYED && !attacked[r][c]) {
                 attack[r][c] += 1;
@@ -256,7 +256,7 @@ void repair() {
 int find_max() {
     int max_val = 0;
     for (int r = 1; r <= N; ++r) {
-        for (int c = 1; c <= N; ++c) {
+        for (int c = 1; c <= M; ++c) {
             max_val = max(attack[r][c], max_val);
         }
     }
