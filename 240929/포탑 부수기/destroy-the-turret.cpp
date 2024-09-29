@@ -44,6 +44,8 @@ void obtain_data() {
     }
     attack[DUMMY_ATK_R][DUMMY_ATK_C] = MAX_ATTACK;
     attack[DUMMY_TAR_R][DUMMY_TAR_C] = 0;
+    last_attack[DUMMY_ATK_R][DUMMY_ATK_C] = 0;
+    last_attack[DUMMY_TAR_R][DUMMY_TAR_C] = MAX_TURN + 1;
 }
 
 //턴 시작 전 정보 업데이트
@@ -55,7 +57,6 @@ void initialize() {
         for (int c = 1; c <= M; ++c) {
             visited[r][c] = false;
             attacked[r][c] = false;
-            prev_node[r][c] = { 0, 0 };
         }
     }
 }
@@ -74,7 +75,7 @@ bool should_be_attacker(int r, int c, int cmp_r, int cmp_c) {
     if (cmp_attack == cur_attack &&
         cmp_last_attack == cur_last_attack &&
         cmp_r + cmp_c == r + c &&
-        cmp_c > c) return true; //조건 4
+        cmp_c < c) return true; //조건 4
     return false;
     
 }
@@ -118,7 +119,7 @@ bool should_be_target(int r, int c, int cmp_r, int cmp_c) {
     if (cmp_attack == cur_attack &&
         cmp_last_attack == cur_last_attack &&
         cmp_r + cmp_c == r + c &&
-        cmp_c < c) return true; //조건 4
+        cmp_c > c) return true; //조건 4
     return false;
 
 }
