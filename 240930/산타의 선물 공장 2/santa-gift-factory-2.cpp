@@ -180,7 +180,10 @@ void distribute_products() {
     int m_src, m_dst;
     cin >> m_src >> m_dst;
     int cnt = belts[m_src].present_cnt / 2;
-    if (cnt == 0) return; //선물 전달할게 없음.
+    if (cnt == 0) {
+        print_present_cnt(m_dst);
+        return; //선물 전달할게 없음.
+    }
 
     int head_idx = belts[m_src].head_idx;
     int cur_idx = head_idx;
