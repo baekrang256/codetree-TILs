@@ -225,7 +225,7 @@ void new_mover() {
     //해당 베이스캠프는 더이상 지나가는 것이 불가능하다.
     cur_pos[turn].first = sel_it->first;
     cur_pos[turn].second = sel_it->second;
-    cout << cur_pos[turn].first << " " << cur_pos[turn].second << "\n";
+    //cout << cur_pos[turn].first << " " << cur_pos[turn].second << "\n";
     map[sel_it->first][sel_it->second] = INPASSABLE;
 
     //해당 베이스캠프는 더이상 사용이 불가능하다.
