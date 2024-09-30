@@ -90,6 +90,7 @@ int bfs(int r, int c, int dest_r, int dest_c) {
         for (int idx = 0; idx < 4; ++idx) {
             int new_r = cur_r + delta[idx].first;
             int new_c = cur_c + delta[idx].second;
+            //cout << new_r << " " << new_c << "\n";
 
             //경계를 벗어나거나, 막힌 곳이거나, 이미 방문했으면 넘어가자.
             if (out_of_bound(new_r, new_c) || map[new_r][new_c] == INPASSABLE || visited[new_r][new_c]) {
@@ -112,8 +113,10 @@ int bfs(int r, int c, int dest_r, int dest_c) {
     }
 
     //문제 조건에 따르면 도착을 하지 못할 일은 없기 때문에, 여기에 오는 것은 문제가 있음...
-    cout << "what?\n";
-    return -1;
+    //다만 그래도 도달하는 것이 가능은 하다. 모든 베이스캠프가 도달할 필요는 없거든.
+    //이 경우 최댓값 반환 필요.
+    //cout << "what?\n";
+    return INT_MAX;
 }
 
 //bfs이후, 시작지점에서 최단거리로 가기 위해 선택한 첫 방향이 뭔지 파악하는 용도
@@ -208,7 +211,9 @@ void new_mover() {
     auto sel_it = base_camp_pos_list.end();
     int min_dist = INT_MAX;
     int dest_r = dest[turn].first, dest_c = dest[turn].second;
+    //cout << "destination : " << dest_r << " " << dest_c << "\n";
     for (auto it = base_camp_pos_list.begin(); it != base_camp_pos_list.end(); ++it) {
+        //cout << "basecamp pos : " << it->first << " " << it->second << "\n";
         int dist = bfs(it->first, it->second, dest_r, dest_c);
         if (dist < min_dist) {
             sel_it = it;
@@ -220,6 +225,7 @@ void new_mover() {
     //해당 베이스캠프는 더이상 지나가는 것이 불가능하다.
     cur_pos[turn].first = sel_it->first;
     cur_pos[turn].second = sel_it->second;
+    cout << cur_pos[turn].first << " " << cur_pos[turn].second << "\n";
     map[sel_it->first][sel_it->second] = INPASSABLE;
 
     //해당 베이스캠프는 더이상 사용이 불가능하다.
