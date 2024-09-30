@@ -103,7 +103,10 @@ void move_all_products() {
     cin >> m_src >> m_dst;
 
     //m_src에 선물이 없으면 스킵
-    if (belts[m_src].present_cnt == 0) return;
+    if (belts[m_src].present_cnt == 0) {
+        print_present_cnt(m_dst);
+        return;
+    }
     
     //먼저, m_dst의 tail present의 정보를 갱신을 한다.
     //이때 m_dst의 head가 NONE일수도 있다.
