@@ -109,7 +109,7 @@ void unload_product() {
     int w_max;
     cin >> w_max;
 
-    int unloaded_weights = 0;
+    long long int unloaded_weights = 0;
 
     //각 벨트의 맨 앞에, w_max 이하의 제품이 있는지 확인
     for (int belt_num = 1; belt_num <= m; ++belt_num) {
