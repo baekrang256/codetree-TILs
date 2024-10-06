@@ -57,6 +57,7 @@ void debug_print(int turn) {
         cout << "\n";
     }
     cout << "\n";
+    cout << "scores : " << scores << "\n\n";
 }
 
 bool out_of_bound(int r, int c) {
@@ -125,13 +126,13 @@ void bfs_team(int r, int c, int team_num) {
             }
             else if (base_map[new_r][new_c] == TAIL) {
                 visited[new_r][new_c] = true;
-                bfs_queue.push({ new_r, new_c });
                 tail_r = new_r, tail_c = new_c;
             }
         }
     }
 
     teams[team_num].push_back({tail_r, tail_c});
+    mates_map[tail_r][tail_c] = team_num;
 }
 
 //calculate score, add it to team score
