@@ -1,255 +1,251 @@
 #include <iostream>
 #include <vector>
+#include <tuple>
 
-#define EMPTY 0
+#define MAX_N 25
+#define DIR_NUM 4
 
 using namespace std;
 
-int N, M;
-int explode_cnt[4] = { 0 }; //1~3번 구슬 폭발 개수
-int marbles[49][49] = { 0 }; //구슬 모음
-pair<int, int> delta[5] = { {0, 0}, {-1, 0}, {1, 0}, {0, -1}, {0, 1} };
-int d_idx[4] = { 3, 2, 4, 1 }; //보드 순회시 회전 순서
-int tot_marble_cnt = 0;
+int n, m;
 
-void debug_print() {
-    for (int r = 0; r < N; ++r) {
-        for (int c = 0; c < N; ++c) {
-            cout << marbles[r][c] << " ";
+int grid[MAX_N][MAX_N];
+int temp[MAX_N][MAX_N];
+
+vector<pair<int, int> > spiral_points;
+
+int ans;
+
+void SearchSpiral() {
+    // 나선이 돌아가는 순서대로 
+    // 왼쪽 아래 오른쪽 위 방향이 되도록 정의합니다.
+    int dx[DIR_NUM] = {0, 1, 0, -1};
+    int dy[DIR_NUM] = {-1, 0, 1, 0};
+
+    // 시작 위치와 방향, 
+    // 해당 방향으로 이동할 횟수를 설정합니다. 
+    int curr_x = n / 2, curr_y = n / 2;
+    int move_dir = 0, move_num = 1;
+
+    while(curr_x || curr_y) {
+        // move_num 만큼 이동합니다.
+        for(int i = 0; i < move_num; i++) {
+            curr_x += dx[move_dir]; curr_y += dy[move_dir];
+            spiral_points.push_back(make_pair(curr_x, curr_y));
+
+            // 이동하는 도중 (0, 0)으로 오게 되면,
+            // 움직이는 것을 종료합니다.
+            if(!curr_x && !curr_y)
+                break;
         }
-        cout << "\n";
+        
+        // 방향을 바꿉니다.
+        move_dir = (move_dir + 1) % 4;
+        // 만약 현재 방향이 왼쪽 혹은 오른쪽이 된 경우에는
+        // 특정 방향으로 움직여야 할 횟수를 1 증가시킵니다.
+        if(move_dir == 0 || move_dir == 2)
+            move_num++;
     }
-    cout << "\n";
 }
 
-void explosion(vector<pair<int, int>>& v, int marble_num, int marble_cnt) {
-    for (auto pos : v) {
-        marbles[pos.first][pos.second] = EMPTY;
+void Pull() {
+    // Step 1. temp 배열을 초기화합니다.
+    for(int i = 0; i < n; i++)
+        for(int j = 0; j < n; j++)
+            temp[i][j] = 0;
+
+    // Step2. 나선 순서대로 보며
+    //        비어있지 않은 값들을 temp에 채워줍니다.
+    int temp_idx = 0;
+    for(pair<int, int> grid_point: spiral_points) {
+        int gx, gy;
+        tie(gx, gy) = grid_point;
+        
+        if(grid[gx][gy]) {
+            int tx, ty;
+            tie(tx, ty) = spiral_points[temp_idx];
+            temp[tx][ty] = grid[gx][gy];
+            temp_idx++;
+        }
     }
-    explode_cnt[marble_num] += marble_cnt;
-    tot_marble_cnt -= marble_cnt;
+
+    // Step 3. temp 값을 다시 grid에 옮겨줍니다.
+    for(int i = 0; i < n; i++)
+        for(int j = 0; j < n; j++)
+            grid[i][j] = temp[i][j];
+}
+
+void Attack(int d, int p) {
+    // 문제에서 주어진 순서대로 → ↓ ← ↑
+    int dx[DIR_NUM] = {0, 1,  0, -1};
+    int dy[DIR_NUM] = {1, 0, -1,  0};
+
+    // Step 1. d 방향으로 p마리의 몬스터를 제거합니다.
+    int center_x = n / 2, center_y = n / 2;
+    for(int dist = 1; dist <= p; dist++) {
+        int nx = center_x + dx[d] * dist;
+        int ny = center_y + dy[d] * dist;
+
+        ans += grid[nx][ny];
+        grid[nx][ny] = 0; 
+    }
+
+    // Step2. 비어 있는 자리를 당겨서 채워줍니다.
+    Pull();
+}
+
+int GetNumBySpiralIdx(int spiral_idx) {
+    int x, y;
+    tie(x, y) = spiral_points[spiral_idx];
+    return grid[x][y];
+}
+
+// start_idx로부터 연속하여 같은 숫자로 이루어져 있는
+// 가장 끝 index를 찾아 반환합니다. 
+int GetEndIdxOfSameNum(int start_idx) {
+    int end_idx = start_idx + 1;
+    int curr_num = GetNumBySpiralIdx(start_idx);
+    int end_of_array = (int) spiral_points.size();
+
+    while(end_idx < end_of_array) {
+        if(GetNumBySpiralIdx(end_idx) == curr_num)
+            end_idx++;
+        else
+            break;
+    }
+
+    return end_idx - 1;
+}
+
+void Remove(int start_idx, int end_idx) {
+    for(int i = start_idx; i <= end_idx; i++) {
+        int x, y;
+        tie(x, y) = spiral_points[i];
+        ans += grid[x][y];
+        grid[x][y] = 0;
+    }
+}
+
+// 4번 이상 반복하여 나오는 구간을 지워줍니다.
+bool Bomb() {
+    bool did_explode = false;
+    int curr_idx = 0;
+    int end_of_array = (int) spiral_points.size();
+
+    while(curr_idx < end_of_array) {
+        int end_idx = GetEndIdxOfSameNum(curr_idx);
+        int curr_num = GetNumBySpiralIdx(curr_idx);
+
+        // 맨 끝에 도달하게 되면, 더이상 진행하지 않습니다.
+        if(curr_num == 0)
+            break;
+
+        if(end_idx - curr_idx + 1 >= 4) {
+            // 연속한 숫자의 개수가 4개 이상이면
+            // 해당 구간을 지워줍니다.
+            Remove(curr_idx, end_idx);
+            did_explode = true;
+        }
+
+        // 그 다음 구간의 시작값으로 변경해줍니다.
+        curr_idx = end_idx + 1;
+    }
+
+    return did_explode;
+}
+
+// 4번 이상 반복하여 나오는 구간을 계속 지워줍니다.
+void Organize() {
+    while(true) {
+        // 4번 이상 나오는 구간을 터뜨려봅니다.
+        bool keep_going = Bomb();
+        
+        if(!keep_going)
+            break;
+
+        // 지운 이후에는 다시 당겨서 채워줍니다.
+        Pull();
+    }
+}
+
+void LookAndSay() {
+    // Step 1. temp 배열을 초기화합니다.
+    for(int i = 0; i < n; i++)
+        for(int j = 0; j < n; j++)
+            temp[i][j] = 0;
+    
+    // Step2. 보고 말하며 temp에 해당 값을 기록합니다.
+    int temp_idx = 0;
+
+    int curr_idx = 0;
+    int end_of_array = (int) spiral_points.size();
+    while(curr_idx < end_of_array) {
+        int end_idx = GetEndIdxOfSameNum(curr_idx);
+
+        // 연속하여 나온 숫자의 개수와 숫자 종류 값을 계산합니다.
+        int contiguous_cnt = end_idx - curr_idx + 1;
+        int curr_num = GetNumBySpiralIdx(curr_idx);
+
+        // 맨 끝에 도달하게 되면, 더이상 진행하지 않습니다.
+        if(curr_num == 0)
+            break;
+
+        // temp에 (개수, 종류) 순서대로 기록해줍니다.
+        // 만약 격자를 벗어나면 종료합니다.
+        if(temp_idx >= end_of_array)
+            break;
+        
+        int tx, ty;
+        tie(tx, ty) = spiral_points[temp_idx];
+        temp[tx][ty] = contiguous_cnt;
+        temp_idx++;
+
+        if(temp_idx >= end_of_array)
+            break;
+
+        tie(tx, ty) = spiral_points[temp_idx];
+        temp[tx][ty] = curr_num;
+        temp_idx++;
+
+        // 그 다음 구간의 시작값으로 변경해줍니다.
+        curr_idx = end_idx + 1;
+    }
+
+    // Step 3. temp 값을 다시 grid에 옮겨줍니다.
+    for(int i = 0; i < n; i++)
+        for(int j = 0; j < n; j++)
+            grid[i][j] = temp[i][j];
+}
+
+void Simulate(int d, int p) {
+    // Step 1. 공격하여 몬스터를 제거합니다.
+    Attack(d, p);
+
+    // Step 2. 4번 이상 반복하여 나오는 구간을 계속 지워줍니다.
+    Organize();
+
+    // Step 3. 보고 말하기 행동을 진행합니다.
+    LookAndSay();
 }
 
 int main() {
-    cin >> N >> M;
-    for (int r = 0; r < N; ++r) {
-        for (int c = 0; c < N; ++c) {
-            cin >> marbles[r][c];
-            if (marbles[r][c] != EMPTY) tot_marble_cnt++;
-        }
+    cin >> n >> m;
+
+    for(int i = 0; i < n; i++)
+        for(int j = 0; j < n; j++)
+            cin >> grid[i][j];
+
+    // 중심 탑을 기준으로 나선 모양으로 회전했을 때
+    // 지나게 되는 위치의 좌표들을 순서대로 기록해 놓습니다.
+    SearchSpiral();
+
+    // m번에 걸쳐 시뮬레이션을 진행합니다.
+    while(m--) {
+        int d, p;
+        cin >> d >> p;
+
+        Simulate(d, p);
     }
 
-    int d, s;
-    for (int magic_cnt = 0; magic_cnt < M; ++magic_cnt) {
-        //마법 발동 쿠와아
-        //cout << "magic no." << magic_cnt + 1 << "\n\n";
-        cin >> d >> s;
-
-        int cur_r = (N - 1) / 2, cur_c = (N - 1) / 2;
-        int base_len, len, d_idx_idx, cur_marble, cur_marble_cnt; bool change;
-        vector<pair<int, int>> v;
-
-        while (s > 0) {
-            --s;
-            cur_r += delta[d].first;
-            cur_c += delta[d].second;
-            if (marbles[cur_r][cur_c] != EMPTY) {
-                marbles[cur_r][cur_c] = EMPTY;
-                tot_marble_cnt--;
-            }
-        }
-        //cout << "started blizzard " << magic_cnt << "\n";
-        //debug_print();
-
-        //이동 + 폭발한다! 무한 반복.
-        while (true) {
-            //이동
-            base_len = 1; len = 1; d_idx_idx = 0; change = false;
-            cur_r = (N - 1) / 2 + delta[d_idx[d_idx_idx]].first;
-            cur_c = (N - 1) / 2 + delta[d_idx[d_idx_idx]].second;
-            int empty_cnt = 0;
-            v.clear();
-            int cur_cnt = 0;
-            while (cur_r >= 0 && cur_r < N && cur_c >= 0 && cur_c < N) {
-                //구슬 옮기기
-                v.push_back({ cur_r, cur_c });
-
-                if (marbles[cur_r][cur_c] == EMPTY) {
-                    empty_cnt++;
-                }
-                else {
-                    auto next_pos = v[v.size() - 1 - empty_cnt];
-                    marbles[next_pos.first][next_pos.second] = marbles[cur_r][cur_c];
-                }
-
-                //잉여 구슬 제거
-                if (cur_cnt >= tot_marble_cnt) {
-                    marbles[cur_r][cur_c] = EMPTY;
-                }
-                cur_cnt++;
-
-                //이동
-                len--;
-                if (len == 0) {
-                    if (change) {
-                        base_len++;
-                    }
-                    len = base_len;
-                    d_idx_idx = (d_idx_idx + 1) % 4;
-                    change = !change;
-                }
-
-                cur_r += delta[d_idx[d_idx_idx]].first;
-                cur_c += delta[d_idx[d_idx_idx]].second;
-            }
-
-            //cout << "after movement" << "\n";
-            //debug_print();
-
-            //폭발한다!
-            bool exploded = false;
-            cur_marble_cnt = 0;
-            base_len = 1; len = 1; d_idx_idx = 0; change = false;
-            cur_r = (N - 1) / 2 + delta[d_idx[d_idx_idx]].first;
-            cur_c = (N - 1) / 2 + delta[d_idx[d_idx_idx]].second;
-            cur_marble = -1;
-            v.clear();
-            while (cur_r >= 0 && cur_r < N && cur_c >= 0 && cur_c < N) {
-
-                if (cur_marble != marbles[cur_r][cur_c]) {
-                    //구슬이 바뀜.
-                    //일단 폭발 여부를 확인해야 함
-                    if (cur_marble_cnt >= 4) {
-                        explosion(v, cur_marble, cur_marble_cnt);
-                        exploded = true;
-                    }
-                    //그리고 새로운 구슬로 대체
-                    cur_marble_cnt = 1;
-                    cur_marble = marbles[cur_r][cur_c];
-                    v.clear();
-                }
-                else { //기존과 동일한 구슬
-                    cur_marble_cnt += 1;
-                }
-
-                //이동 + 잡다한 조작
-                v.push_back({ cur_r, cur_c });
-                len--;
-                if (len == 0) {
-                    if (change) {
-                        base_len++;
-                    }
-                    len = base_len;
-                    d_idx_idx = (d_idx_idx + 1) % 4;
-                    change = !change;
-                }
-
-                cur_r += delta[d_idx[d_idx_idx]].first;
-                cur_c += delta[d_idx[d_idx_idx]].second;
-
-            }
-            //마지막 iteration에 대한 폭발 여부를 확인해야 함.
-            if (cur_marble != 0 && cur_marble_cnt >= 4) {
-                explosion(v, cur_marble, cur_marble_cnt);
-                exploded = true;
-            }
-
-            //폭발이 없으면 탈출.
-            if (!exploded) break;
-
-            //cout << "after explosion" << "\n";
-            //debug_print();
-        }
-        //cout << "explosion over" << "\n\n";
-
-        //변화
-        base_len = 1; len = 1; d_idx_idx = 0; change = false;
-        cur_r = (N - 1) / 2 + delta[d_idx[d_idx_idx]].first;
-        cur_c = (N - 1) / 2 + delta[d_idx[d_idx_idx]].second;
-        cur_marble = marbles[cur_r][cur_c];
-        cur_marble_cnt = 0;
-        v.clear();
-        //일단 변화 후 추가되는 구슬들 통계를 v에다가 저장하자.
-        while (cur_r >= 0 && cur_r < N && cur_c >= 0 && cur_c < N) {
-            //변화할게 더이상 없음
-            if (marbles[cur_r][cur_c] == EMPTY) {
-                if (cur_marble_cnt != 0) {
-                    v.push_back({ cur_marble_cnt, cur_marble });
-                }
-                break;
-            }
-
-            if (cur_marble != marbles[cur_r][cur_c]) {
-                //구슬이 바뀜. 통계를 내고 v에다가 저장하자.
-                v.push_back({ cur_marble_cnt, cur_marble });
-                cur_marble_cnt = 1;
-                cur_marble = marbles[cur_r][cur_c];
-            }
-            else {
-                cur_marble_cnt += 1;
-            }
-
-            //이동
-            len--;
-            if (len == 0) {
-                if (change) {
-                    base_len++;
-                }
-                len = base_len;
-                d_idx_idx = (d_idx_idx + 1) % 4;
-                change = !change;
-            }
-
-            cur_r += delta[d_idx[d_idx_idx]].first;
-            cur_c += delta[d_idx[d_idx_idx]].second;
-
-        }
-
-        //이제 변화하는 구슬들을 최대한 집어넣자.
-        base_len = 1; len = 1; d_idx_idx = 0; change = false;
-        cur_r = (N - 1) / 2 + delta[d_idx[d_idx_idx]].first;
-        cur_c = (N - 1) / 2 + delta[d_idx[d_idx_idx]].second;
-        tot_marble_cnt = 0;
-        int cur_idx = 0;
-        bool put_first = true;
-
-        while (cur_r >= 0 && cur_r < N && cur_c >= 0 && cur_c < N) {
-            if (cur_idx >= v.size()) {
-                marbles[cur_r][cur_c] = EMPTY;
-            }
-            else if (put_first) {
-                ++tot_marble_cnt;
-                marbles[cur_r][cur_c] = v[cur_idx].first;
-            }
-            else {
-                ++tot_marble_cnt;
-                marbles[cur_r][cur_c] = v[cur_idx].second;
-                cur_idx += 1;
-            }
-            put_first = !put_first;
-
-            //이동
-            len--;
-            if (len == 0) {
-                if (change) {
-                    base_len++;
-                }
-                len = base_len;
-                d_idx_idx = (d_idx_idx + 1) % 4;
-                change = !change;
-            }
-
-            cur_r += delta[d_idx[d_idx_idx]].first;
-            cur_c += delta[d_idx[d_idx_idx]].second;
-
-        }
-
-        //cout << "after blizzard " << magic_cnt << "\n";
-        //debug_print();
-    }
-
-    //결과 발표
-    cout << explode_cnt[1] + explode_cnt[2] * 2 + explode_cnt[3] * 3 << flush;
-
-    return 0;
+    cout << ans;
 }
